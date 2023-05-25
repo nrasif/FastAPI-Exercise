@@ -1,8 +1,9 @@
 import uvicorn
 
 from typing import Optional
-from fastapi import FastAPI
+from fastapi import FastAPI, Path, Query, HTTPException
 from pydantic import BaseModel, Field
+from starlette import status
 
 app = FastAPI()
 
@@ -47,20 +48,22 @@ BOOKS = [
 ]
 
 # Ambil semua data buku
-@app.get('/books')
+@app.get('/books', status_code=status.HTTP_200_OK)
 async def read_all_books():
     return BOOKS
 
 # Ambil buku berdasarkan id (karena id itu unique, maka pake dynamic parameter (cuma ambil 1 buku))
-@app.get('/books/{book_id}')
-async def read_book_by_id(book_id: int):
+@app.get('/books/{book_id}', status_code=status.HTTP_200_OK)
+async def read_book_by_id(book_id: int = Path(gt=0)):
     for i in BOOKS:
         if i.id == book_id:
             return i
+    
+    raise HTTPException(status_code=404, detail='Book not found')
 
 # Ambil buku berdasarkan rating (karena rating itu macem macem, pake query (ambil lebih dari 1 buku))
-@app.get('/books/')
-async def read_book_by_rating(book_rating: int):
+@app.get('/books/', status_code=status.HTTP_200_OK)
+async def read_book_by_rating(book_rating: int = Query(gt=0, lt=6)):
     list_rating = []
     for i in BOOKS:
         if i.rating == book_rating:
@@ -68,7 +71,7 @@ async def read_book_by_rating(book_rating: int):
     return list_rating
 
 # Bikin buku baru, tapi formatnya harus ngikutin BookRequest
-@app.post('/create-book')
+@app.post('/create-book', status_code=status.HTTP_201_CREATED)
 async def create_book(format_buku: BookRequest):
     new_book = Book(**format_buku.dict())
     BOOKS.append(find_book_id(new_book))
@@ -79,19 +82,27 @@ def find_book_id(book: Book):
     return book
 
 # Update buku berdasarkan kesamaan id
-@app.put('/books/update_book')
+@app.put('/books/update_book', status_code=status.HTTP_204_NO_CONTENT)
 async def update_book(book: BookRequest):
+    book_changed= False
     for i in range(len(BOOKS)):
         if BOOKS[i].id == book.id:
             BOOKS[i] = book
+            book_changed= True
+    if not book_changed:
+        raise HTTPException(status_code=404, detail='book not found')
 
 # Delete buku
-@app.delete('/books/{book_id}')
+@app.delete('/books/{book_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_book(book_id: int):
-    for i in BOOKS:
-        if i.id == book_id:
+    book_changed= False
+    for i in range(len(BOOKS)):
+        if BOOKS[i].id == book_id:
             BOOKS.pop(i)
+            book_changed= True
             break
+    if not book_changed:
+        raise HTTPException(status_code=404, detail='book not found')
 
 if __name__ == "__main__":
     uvicorn.run(app, port=8010)
