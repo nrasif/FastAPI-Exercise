@@ -46,10 +46,28 @@ BOOKS = [
     Book(6, 'HP3', 'Author 3', 'Book Description', 1)
 ]
 
+# Ambil semua data buku
 @app.get('/books')
 async def read_all_books():
     return BOOKS
 
+# Ambil buku berdasarkan id (karena id itu unique, maka pake dynamic parameter (cuma ambil 1 buku))
+@app.get('/books/{book_id}')
+async def read_book_by_id(book_id: int):
+    for i in BOOKS:
+        if i.id == book_id:
+            return i
+
+# Ambil buku berdasarkan rating (karena rating itu macem macem, pake query (ambil lebih dari 1 buku))
+@app.get('/books/')
+async def read_book_by_rating(book_rating: int):
+    list_rating = []
+    for i in BOOKS:
+        if i.rating == book_rating:
+            list_rating.append(i)
+    return list_rating
+
+# Bikin buku baru, tapi formatnya harus ngikutin BookRequest
 @app.post('/create-book')
 async def create_book(format_buku: BookRequest):
     new_book = Book(**format_buku.dict())
@@ -59,6 +77,21 @@ async def create_book(format_buku: BookRequest):
 def find_book_id(book: Book):
     book.id = 1 if len(BOOKS) == 0 else BOOKS[-1].id + 1
     return book
+
+# Update buku berdasarkan kesamaan id
+@app.put('/books/update_book')
+async def update_book(book: BookRequest):
+    for i in range(len(BOOKS)):
+        if BOOKS[i].id == book.id:
+            BOOKS[i] = book
+
+# Delete buku
+@app.delete('/books/{book_id}')
+async def delete_book(book_id: int)::
+    for i in BOOKS:
+        if i.id == book_id:
+            BOOKS.pop(i)
+            break
 
 if __name__ == "__main__":
     uvicorn.run(app, port=8010)
